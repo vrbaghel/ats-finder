@@ -1,0 +1,5 @@
+node_modules
+.env
+GEMINI.md
+CLAUDE.md
+CODEX.md

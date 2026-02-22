@@ -65,7 +65,7 @@ Maintain code quality with ESLint:
 npm run lint
 ```
 
-## 🔍 How it works
+## How it works
 
 1.  **Fetch Data**: The script queries your Notion database using the Notion SDK's Data Source API.
 2.  **Generate Variants**: For each company, it generates common URL slug variants (e.g., `riotgames`, `riot-games`).
@@ -79,4 +79,4 @@ Contributions are welcome! Feel free to open issues or submit pull requests for 
 
 ## License
 
-This project is licensed under the [ISC License](LICENSE).
+This project is licensed under the [MIT License](./LICENSE).

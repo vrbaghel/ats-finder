@@ -285,4 +285,7 @@ async function run(): Promise<void> {
   }
 }
 
-run();
+// Only execute if run directly
+if (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.js')) {
+  run();
+}

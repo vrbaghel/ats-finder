@@ -1,12 +1,13 @@
 # ATS Platform Finder for Notion (TypeScript)
 
-A powerful automation tool that identifies the Applicant Tracking System (ATS) used by companies listed in your Notion database. This script currently detects **Greenhouse**, **Lever**, and **Ashby** by probing their public job board APIs.
+A powerful automation tool that identifies the Applicant Tracking System (ATS) used by companies listed in your Notion database. This script currently detects **Greenhouse**, **Lever**, **Ashby**, and **Workday** by probing their public job board APIs.
 
 ## Features
 
 - **Automated Detection**: Iterates through your Notion database and identifies ATS platforms.
 - **Slug Generation**: Automatically generates slug variants (e.g., "Riot Games" -> `riotgames`, `riot-games`) to find the correct job board.
-- **Notion Integration**: Updates your Notion database with the detected ATS name and the direct job portal URL.
+- **Workday URL Parsing**: Automatically extracts Workday-specific details (Tenant, Portal, and Search Facets) from job portal URLs.
+- **Notion Integration**: Updates your Notion database with the detected ATS name, direct job portal URL, and detailed Workday metadata.
 - **Flexible Property Support**: Automatically handles both `Select`, `URL`, and `Rich Text` property types in Notion.
 - **Modern Notion API**: Built with the latest Notion SDK (version `2025-09-03`).
 
@@ -18,6 +19,10 @@ A powerful automation tool that identifies the Applicant Tracking System (ATS) u
     - `Name` (Title): The name of the company.
     - `ATS` (Select or Text): Where the identified platform will be stored.
     - `Job Portal URL` (URL or Text): Where the link to the company's job board will be stored.
+    - **Workday Specific (Optional, type: Rich Text)**:
+        - `Workday Tenant`: To store the tenant (e.g., `wd1`).
+        - `Workday Portal`: To store the portal name (e.g., `Boston_Dynamics`).
+        - `Workday Facets`: To store query parameters as a JSON string.
 
 ## Setup
 
@@ -51,6 +56,11 @@ A powerful automation tool that identifies the Applicant Tracking System (ATS) u
 Run the script directly using `ts-node`:
 ```bash
 npm start
+```
+
+Run the Workday URL parser tests:
+```bash
+npm run test:workday
 ```
 
 For production-like execution, build and run:

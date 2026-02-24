@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:workday": "NODE_OPTIONS=\"--loader ts-node/esm\" npx ts-node src/test-workday.ts",
     "start": "ts-node src/index.ts",
     "build": "tsc",
     "lint": "eslint src/**/*.ts"

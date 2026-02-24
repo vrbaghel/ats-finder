@@ -8,6 +8,9 @@ const DATABASE_ID = process.env.DATABASE_ID;
 const COMPANY_PROPERTY_NAME = process.env.COMPANY_PROPERTY_NAME || 'Name';
 const ATS_PROPERTY_NAME = process.env.ATS_PROPERTY_NAME || 'ATS';
 const PORTAL_URL_PROPERTY_NAME = process.env.PORTAL_URL_PROPERTY_NAME || 'Job Portal URL';
+const WORKDAY_TENANT_PROPERTY_NAME = process.env.WORKDAY_TENANT_PROPERTY_NAME || 'Workday Tenant';
+const WORKDAY_PORTAL_PROPERTY_NAME = process.env.WORKDAY_PORTAL_PROPERTY_NAME || 'Workday Portal';
+const WORKDAY_FACETS_PROPERTY_NAME = process.env.WORKDAY_FACETS_PROPERTY_NAME || 'Workday Facets';
 
 if (!NOTION_TOKEN || !DATABASE_ID) {
   console.error('Error: NOTION_TOKEN and DATABASE_ID must be set in .env');
@@ -44,7 +47,56 @@ const ATS_PLATFORMS: AtsPlatform[] = [
     getApiUrl: (slug: string) => `https://api.ashbyhq.com/posting-api/job-board/${slug}`,
     getBoardUrl: (slug: string) => `https://jobs.ashbyhq.com/${slug}`,
   },
+  {
+    name: 'Workday',
+    getApiUrl: (slug: string) => `https://${slug}.myworkdayjobs.com/jobs`,
+    getBoardUrl: (slug: string) => `https://${slug}.myworkdayjobs.com/jobs`,
+  },
 ];
+
+/**
+ * Parses a Workday URL and returns its components.
+ */
+function parseWorkdayUrl(urlStr: string) {
+  try {
+    const url = new URL(urlStr);
+    const hostnameParts = url.hostname.split('.');
+    
+    // The tenant is usually the segment before 'myworkdayjobs'
+    const index = hostnameParts.indexOf('myworkdayjobs');
+    // If not found, it might be a different format, but we handle the provided ones
+    const tenant = index > 0 ? hostnameParts[index - 1] : 'unknown';
+    
+    // Refine Portal: Split pathname, remove empty segments, and ignore locales and "jobs"
+    const segments = url.pathname.split('/').filter(s => s.length > 0);
+    const filteredSegments = segments.filter(s => {
+      // Ignore locales: en, en-US, fr-FR, zh-Hans-CN
+      const isLocale = /^[a-z]{2}(-[a-zA-Z]{2,4}){0,2}$/.test(s);
+      // Ignore literal "jobs"
+      const isJobs = s.toLowerCase() === 'jobs';
+      return !isLocale && !isJobs;
+    });
+    const portal = filteredSegments[0] || '';
+    
+    // Facets are searchParams converted to a JSON object of arrays
+    const facets: Record<string, string[]> = {};
+    url.searchParams.forEach((value, key) => {
+      if (!facets[key]) {
+        facets[key] = [];
+      }
+      facets[key].push(value);
+    });
+    
+    return { 
+      tenant, 
+      portal, 
+      facetsJson: JSON.stringify(facets, null, 2) 
+    };
+  } catch (error) {
+    console.error(`Failed to parse Workday URL: ${urlStr}`);
+    return null;
+  }
+}
 
 /**
  * Normalizes company name into common slug variants.
@@ -148,25 +200,39 @@ async function run(): Promise<void> {
         const companyName = companyProp.title[0].plain_text;
         console.log(`\n[${++totalProcessed}] Processing: ${companyName}`);
 
-        const result = await findATS(companyName);
-        console.log(`Result: ${result.name} (${result.url || 'N/A'})`);
+        // Get current ATS and Portal URL
+        const currentAtsProp = properties[ATS_PROPERTY_NAME];
+        const currentAtsValue = currentAtsProp?.select?.name || currentAtsProp?.rich_text?.[0]?.plain_text;
+        const currentPortalUrlProp = properties[PORTAL_URL_PROPERTY_NAME];
+        const currentPortalUrl = currentPortalUrlProp?.url || currentPortalUrlProp?.rich_text?.[0]?.plain_text;
+
+        let result: AtsResult;
+        
+        // If it's already marked as Workday, we skip findATS unless we need to update the URL
+        if (currentAtsValue === 'Workday' && currentPortalUrl) {
+          result = { name: 'Workday', url: currentPortalUrl };
+        } else {
+          result = await findATS(companyName);
+          console.log(`Result: ${result.name} (${result.url || 'N/A'})`);
+        }
 
         const updateProperties: any = {};
 
-        // 1. Update ATS Platform name
-        const currentAtsProp = properties[ATS_PROPERTY_NAME];
-        if (currentAtsProp && currentAtsProp.type === 'select') {
-          updateProperties[ATS_PROPERTY_NAME] = {
-            select: { name: result.name },
-          };
-        } else {
-          updateProperties[ATS_PROPERTY_NAME] = {
-            rich_text: [{ text: { content: result.name } }],
-          };
+        // 1. Update ATS Platform name (only if it's new or was 'Other')
+        if (result.name !== 'Other' && result.name !== currentAtsValue) {
+          if (currentAtsProp && currentAtsProp.type === 'select') {
+            updateProperties[ATS_PROPERTY_NAME] = {
+              select: { name: result.name },
+            };
+          } else {
+            updateProperties[ATS_PROPERTY_NAME] = {
+              rich_text: [{ text: { content: result.name } }],
+            };
+          }
         }
 
-        // 2. Update Job Portal URL
-        if (result.url) {
+        // 2. Update Job Portal URL (if new)
+        if (result.url && result.url !== currentPortalUrl) {
           const urlProp = properties[PORTAL_URL_PROPERTY_NAME];
           if (urlProp && urlProp.type === 'url') {
             updateProperties[PORTAL_URL_PROPERTY_NAME] = {
@@ -179,10 +245,31 @@ async function run(): Promise<void> {
           }
         }
 
-        await notion.pages.update({
-          page_id: page.id,
-          properties: updateProperties,
-        });
+        // 3. Special Workday Parsing (only if it's a Workday URL)
+        const finalUrl = result.url || currentPortalUrl;
+        if ((result.name === 'Workday' || currentAtsValue === 'Workday') && finalUrl) {
+          const workdayData = parseWorkdayUrl(finalUrl);
+          if (workdayData) {
+            console.log(`  -> Workday Parsed: Tenant=${workdayData.tenant}, Portal=${workdayData.portal}`);
+            updateProperties[WORKDAY_TENANT_PROPERTY_NAME] = {
+              rich_text: [{ text: { content: workdayData.tenant } }],
+            };
+            updateProperties[WORKDAY_PORTAL_PROPERTY_NAME] = {
+              rich_text: [{ text: { content: workdayData.portal } }],
+            };
+            updateProperties[WORKDAY_FACETS_PROPERTY_NAME] = {
+              rich_text: [{ text: { content: workdayData.facetsJson } }],
+            };
+          }
+        }
+
+        // Only update if there are properties to change
+        if (Object.keys(updateProperties).length > 0) {
+          await notion.pages.update({
+            page_id: page.id,
+            properties: updateProperties,
+          });
+        }
       }
 
       hasMore = response.has_more;

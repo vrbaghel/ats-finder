@@ -57,7 +57,7 @@ const ATS_PLATFORMS: AtsPlatform[] = [
 /**
  * Parses a Workday URL and returns its components.
  */
-function parseWorkdayUrl(urlStr: string) {
+export function parseWorkdayUrl(urlStr: string) {
   try {
     const url = new URL(urlStr);
     const hostnameParts = url.hostname.split('.');

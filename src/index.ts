@@ -7,6 +7,7 @@ import { initDb, insertCompanyATS, closeDb } from './db.js';
 const program = new Command();
 
 interface AtsPlatform {
+  key: string;
   name: string;
   getApiUrl: (slug: string) => string;
   getBoardUrl: (slug: string) => string;
@@ -14,16 +15,19 @@ interface AtsPlatform {
 
 const ATS_PLATFORMS: AtsPlatform[] = [
   {
+    key: 'greenhouse',
     name: 'Greenhouse',
     getApiUrl: (slug: string) => `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`,
     getBoardUrl: (slug: string) => `https://boards.greenhouse.io/${slug}`,
   },
   {
+    key: 'lever',
     name: 'Lever',
     getApiUrl: (slug: string) => `https://api.lever.co/v0/postings/${slug}`,
     getBoardUrl: (slug: string) => `https://jobs.lever.co/${slug}`,
   },
   {
+    key: 'ashby',
     name: 'Ashby',
     getApiUrl: (slug: string) => `https://api.ashbyhq.com/posting-api/job-board/${slug}`,
     getBoardUrl: (slug: string) => `https://jobs.ashbyhq.com/${slug}`,
@@ -65,7 +69,9 @@ async function checkUrl(url: string): Promise<boolean> {
  * Result interface for ATS finding.
  */
 interface AtsResult {
-  name: string;
+  key: string | null;
+  name: string | null;
+  token: string | null;
   url: string | null;
 }
 
@@ -82,14 +88,16 @@ async function findATS(companyName: string): Promise<AtsResult> {
       if (await checkUrl(apiUrl)) {
         console.log('FOUND!');
         return {
+          key: platform.key,
           name: platform.name,
+          token: slug,
           url: platform.getBoardUrl(slug),
         };
       }
       console.log('no.');
     }
   }
-  return { name: 'Other', url: null };
+  return { key: null, name: 'Other', token: null, url: null };
 }
 
 program
@@ -108,7 +116,11 @@ program
         
         console.log(`  => Detected: ${result.name} (${result.url || 'N/A'})`);
         
-        await insertCompanyATS(company, result.name, result.url);
+        // wd_params is null for now
+        // Map null key to 'custom' for unknown/other ATS types if required by ENUM
+        const atsType = result.key || 'custom'; 
+        
+        await insertCompanyATS(company, atsType, result.token, null, result.url);
         console.log(`  => Saved to database.\n`);
       }
 

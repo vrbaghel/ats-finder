@@ -4,7 +4,7 @@
   "description": "CLI tool to find ATS platforms for companies and store them in PostgreSQL",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/index.ts",
+    "start": "node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts",
     "build": "tsc",
     "lint": "eslint src/**/*.ts"
   },

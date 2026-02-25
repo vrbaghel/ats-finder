@@ -12,42 +12,36 @@ const pool = new Pool({
 const TABLE_NAME = process.env.DB_TABLE_NAME || 'companies';
 
 export const initDb = async () => {
-  const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
-      id SERIAL PRIMARY KEY,
-      company_name VARCHAR(255) NOT NULL UNIQUE,
-      ats_type VARCHAR(50),
-      job_portal_link VARCHAR(500),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-  try {
-    await pool.query(createTableQuery);
-    console.log(`Table '${TABLE_NAME}' ensured to exist with unique constraint on company_name.`);
-  } catch (err) {
-    console.error('Error initializing database table:', err);
-    throw err;
-  }
+  // We assume the table is created by Supabase or external migration.
+  // Keeping this simple log to indicate DB connection is ready.
+  console.log(`Using table '${TABLE_NAME}'.`);
 };
 
-export const insertCompanyATS = async (companyName: string, atsType: string | null, jobPortalLink: string | null) => {
+export const insertCompanyATS = async (
+  name: string,
+  atsType: string | null,
+  atsToken: string | null,
+  wdParams: object | null = null,
+  careersPageUrl: string | null = null
+) => {
   const upsertQuery = `
-    INSERT INTO ${TABLE_NAME} (company_name, ats_type, job_portal_link, updated_at)
-    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-    ON CONFLICT (company_name) 
+    INSERT INTO ${TABLE_NAME} (name, ats_type, ats_token, wd_params, last_scanned_at, careers_page_url)
+    VALUES ($1, $2, $3, $4, NOW(), $5)
+    ON CONFLICT (name) 
     DO UPDATE SET 
       ats_type = EXCLUDED.ats_type, 
-      job_portal_link = EXCLUDED.job_portal_link,
-      updated_at = CURRENT_TIMESTAMP
+      ats_token = EXCLUDED.ats_token,
+      wd_params = COALESCE(EXCLUDED.wd_params, ${TABLE_NAME}.wd_params),
+      last_scanned_at = NOW(),
+      careers_page_url = COALESCE(EXCLUDED.careers_page_url, ${TABLE_NAME}.careers_page_url)
     RETURNING *;
   `;
 
   try {
-    const res = await pool.query(upsertQuery, [companyName, atsType, jobPortalLink]);
+    const res = await pool.query(upsertQuery, [name, atsType, atsToken, wdParams, careersPageUrl]);
     return res.rows[0];
   } catch (err) {
-    console.error(`Error inserting/updating company '${companyName}':`, err);
+    console.error(`Error inserting/updating company '${name}':`, err);
     throw err;
   }
 };

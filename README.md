@@ -1,20 +1,23 @@
 # ATS Finder CLI
 
-A command-line interface (CLI) tool that identifies the Applicant Tracking System (ATS) used by companies and stores the results in a PostgreSQL database.
+A command-line interface (CLI) tool that identifies the Applicant Tracking System (ATS) used by companies and stores the results in a PostgreSQL (Supabase) database.
 
-Currently supports detection of **Greenhouse**, **Lever**, and **Ashby** by probing their public job board APIs.
+Currently supports detection of **Greenhouse**, **Lever**, **Ashby**, and **Workday** by probing their public job board APIs or parsing provided URLs.
 
 ## Features
 
-- **CLI Interface**: Accept a list of company names directly as arguments.
+- **Dual Input Modes**:
+    - **Name Mode**: Accept a list of company names directly as arguments to auto-detect ATS.
+    - **Link Mode**: Accept a file containing a list of URLs to parse and extract ATS details.
 - **Automated Detection**: Generates common slug variants (e.g., "Riot Games" -> `riotgames`, `riot-games`) to find the correct job board.
-- **PostgreSQL Integration**: Automatically creates a table and stores the detected ATS platform and job portal URL.
+- **Advanced URL Parsing**: Extracts detailed configuration for Workday (Tenant, Portal, Facets) and other ATS platforms.
+- **PostgreSQL Integration**: Optimized for Supabase with a schema designed for batch processing.
 - **Idempotent Storage**: Updates existing records if the company is already in the database.
 
 ## Prerequisites
 
 - **Node.js** (v18 or higher)
-- **PostgreSQL** database instance
+- **PostgreSQL** database instance (e.g., Supabase)
 
 ## Setup
 
@@ -38,19 +41,17 @@ Currently supports detection of **Greenhouse**, **Lever**, and **Ashby** by prob
     Edit `.env` with your PostgreSQL credentials:
     ```env
     DB_USER=postgres
-    DB_HOST=localhost
-    DB_NAME=ats_finder
+    DB_HOST=your-supabase-host.supabase.co
+    DB_NAME=postgres
     DB_PASSWORD=yourpassword
     DB_PORT=5432
     DB_TABLE_NAME=companies
     ```
 
-4.  **Database Initialization**:
-    The tool will automatically create the required table (`companies` by default) on the first run.
-
 ## Usage
 
-Run the tool by passing one or more company names as arguments:
+### 1. Process by Company Name
+Run the tool by passing one or more company names as arguments. This will attempt to find their ATS automatically.
 
 ```bash
 # Process a single company
@@ -60,24 +61,32 @@ npm start -- "Airbnb"
 npm start -- "Airbnb" "Stripe" "Riot Games"
 ```
 
-The tool will:
-1. Connect to the database.
-2. Search for the ATS for each company.
-3. Output the result to the console.
-4. Save or update the record in the database.
+### 2. Process by URL List (File)
+Pass a file containing a list of career page URLs (one per line). The tool will parse each URL to extract the ATS type, company name, and specific parameters (especially for Workday).
+
+```bash
+# Create a file with URLs
+echo "https://jobs.lever.co/spotify" > companies.urls
+echo "https://nvidia.wd5.myworkdayjobs.com/NVIDIA_External_Career_Site" >> companies.urls
+
+# Run in link mode
+npm start -- --type link companies.urls
+```
 
 ## Database Schema
 
-The tool creates a table (default: `companies`) with the following structure:
+The tool expects a table (default: `companies`) with the following structure (Supabase compatible):
 
 | Column | Type | Description |
 | :--- | :--- | :--- |
-| `id` | SERIAL PRIMARY KEY | Unique identifier. |
-| `company_name` | VARCHAR(255) UNIQUE | Name of the company. |
-| `ats_type` | VARCHAR(50) | Detected ATS (e.g., 'Greenhouse', 'Lever'). |
-| `job_portal_link` | VARCHAR(500) | URL to the job board. |
-| `created_at` | TIMESTAMP | Record creation time. |
-| `updated_at` | TIMESTAMP | Last update time. |
+| `id` | UUID PRIMARY KEY | Unique identifier (default: `gen_random_uuid()`). |
+| `name` | TEXT UNIQUE | Name of the company. |
+| `ats_type` | ENUM | Detected ATS (`greenhouse`, `lever`, `ashby`, `workday`, `custom`). |
+| `ats_token` | TEXT | The unique slug or identifier for the ATS. |
+| `wd_params` | JSONB | Specific configuration for Workday (tenant, portal, facets). |
+| `careers_page_url` | TEXT | The full URL to the careers page. |
+| `last_scanned_at` | TIMESTAMPTZ | Timestamp of the last scan. |
+| `is_active` | BOOLEAN | Whether the company is currently active. |
 
 ## Development
 

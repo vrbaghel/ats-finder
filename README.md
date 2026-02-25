@@ -1,28 +1,20 @@
-# ATS Platform Finder for Notion (TypeScript)
+# ATS Finder CLI
 
-A powerful automation tool that identifies the Applicant Tracking System (ATS) used by companies listed in your Notion database. This script currently detects **Greenhouse**, **Lever**, **Ashby**, and **Workday** by probing their public job board APIs.
+A command-line interface (CLI) tool that identifies the Applicant Tracking System (ATS) used by companies and stores the results in a PostgreSQL database.
+
+Currently supports detection of **Greenhouse**, **Lever**, and **Ashby** by probing their public job board APIs.
 
 ## Features
 
-- **Automated Detection**: Iterates through your Notion database and identifies ATS platforms.
-- **Slug Generation**: Automatically generates slug variants (e.g., "Riot Games" -> `riotgames`, `riot-games`) to find the correct job board.
-- **Workday URL Parsing**: Automatically extracts Workday-specific details (Tenant, Portal, and Search Facets) from job portal URLs.
-- **Notion Integration**: Updates your Notion database with the detected ATS name, direct job portal URL, and detailed Workday metadata.
-- **Flexible Property Support**: Automatically handles both `Select`, `URL`, and `Rich Text` property types in Notion.
-- **Modern Notion API**: Built with the latest Notion SDK (version `2025-09-03`).
+- **CLI Interface**: Accept a list of company names directly as arguments.
+- **Automated Detection**: Generates common slug variants (e.g., "Riot Games" -> `riotgames`, `riot-games`) to find the correct job board.
+- **PostgreSQL Integration**: Automatically creates a table and stores the detected ATS platform and job portal URL.
+- **Idempotent Storage**: Updates existing records if the company is already in the database.
 
 ## Prerequisites
 
-1.  **Notion Integration**: Create an internal integration at [notion.so/my-integrations](https://www.notion.so/my-integrations).
-2.  **Database Access**: Ensure your integration has access to the target database.
-3.  **Database Properties**: Your Notion database should have the following properties (names are configurable):
-    - `Name` (Title): The name of the company.
-    - `ATS` (Select or Text): Where the identified platform will be stored.
-    - `Job Portal URL` (URL or Text): Where the link to the company's job board will be stored.
-    - **Workday Specific (Optional, type: Rich Text)**:
-        - `Workday Tenant`: To store the tenant (e.g., `wd1`).
-        - `Workday Portal`: To store the portal name (e.g., `Boston_Dynamics`).
-        - `Workday Facets`: To store query parameters as a JSON string.
+- **Node.js** (v18 or higher)
+- **PostgreSQL** database instance
 
 ## Setup
 
@@ -38,54 +30,68 @@ A powerful automation tool that identifies the Applicant Tracking System (ATS) u
     ```
 
 3.  **Configure environment variables**:
-    Copy the example environment file and fill in your details:
+    Copy the example environment file:
     ```bash
     cp .env.example .env
     ```
+    
+    Edit `.env` with your PostgreSQL credentials:
+    ```env
+    DB_USER=postgres
+    DB_HOST=localhost
+    DB_NAME=ats_finder
+    DB_PASSWORD=yourpassword
+    DB_PORT=5432
+    DB_TABLE_NAME=companies
+    ```
 
-    | Variable | Description | Default |
-    | :--- | :--- | :--- |
-    | `NOTION_TOKEN` | Your Notion internal integration token. | *Required* |
-    | `DATABASE_ID` | The ID of the Notion database to process. | *Required* |
-    | `COMPANY_PROPERTY_NAME` | The property name for the company name. | `Name` |
-    | `ATS_PROPERTY_NAME` | The property name to store the ATS type. | `ATS` |
-    | `JOB_URL_PROPERTY_NAME` | The property name to store the job portal URL. | `Job Portal URL` |
+4.  **Database Initialization**:
+    The tool will automatically create the required table (`companies` by default) on the first run.
 
 ## Usage
 
-Run the script directly using `ts-node`:
+Run the tool by passing one or more company names as arguments:
+
 ```bash
-npm start
+# Process a single company
+npm start -- "Airbnb"
+
+# Process multiple companies
+npm start -- "Airbnb" "Stripe" "Riot Games"
 ```
 
-Run the Workday URL parser tests:
-```bash
-npm run test:workday
-```
+The tool will:
+1. Connect to the database.
+2. Search for the ATS for each company.
+3. Output the result to the console.
+4. Save or update the record in the database.
 
-For production-like execution, build and run:
+## Database Schema
+
+The tool creates a table (default: `companies`) with the following structure:
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | SERIAL PRIMARY KEY | Unique identifier. |
+| `company_name` | VARCHAR(255) UNIQUE | Name of the company. |
+| `ats_type` | VARCHAR(50) | Detected ATS (e.g., 'Greenhouse', 'Lever'). |
+| `job_portal_link` | VARCHAR(500) | URL to the job board. |
+| `created_at` | TIMESTAMP | Record creation time. |
+| `updated_at` | TIMESTAMP | Last update time. |
+
+## Development
+
+### Build
+Compile TypeScript to JavaScript:
 ```bash
 npm run build
-node dist/index.js
 ```
 
 ### Linting
-Maintain code quality with ESLint:
+Check for code style issues:
 ```bash
 npm run lint
 ```
-
-## How it works
-
-1.  **Fetch Data**: The script queries your Notion database using the Notion SDK's Data Source API.
-2.  **Generate Variants**: For each company, it generates common URL slug variants (e.g., `riotgames`, `riot-games`).
-3.  **Probe APIs**: It sends lightweight HEAD/GET requests to known ATS API endpoints (Greenhouse, Lever, Ashby).
-4.  **Validate**: A `200 OK` response confirms the company uses that specific platform.
-5.  **Update Notion**: The script updates the Notion page with the detected platform name and the direct link to their careers page.
-
-## Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests for additional ATS platform support (e.g., Workday, SuccessFactors, etc.).
 
 ## License
 

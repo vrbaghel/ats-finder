@@ -1,7 +1,9 @@
 import { Command } from 'commander';
 import axios from 'axios';
+import fs from 'fs';
 import 'dotenv/config';
 import { initDb, insertCompanyATS, closeDb } from './db.js';
+import { parseCompanyUrl } from './urlParser.js';
 
 // Configuration
 const program = new Command();
@@ -104,27 +106,72 @@ program
   .name('ats-finder')
   .description('CLI tool to find ATS platforms for companies and store them in PostgreSQL')
   .version('1.0.0')
-  .argument('<companies...>', 'List of company names to process')
-  .action(async (companies: string[]) => {
+  .argument('<inputs...>', 'List of company names OR file path (if type=link)')
+  .option('-t, --type <type>', 'Input type: "name" or "link"', 'name')
+  .action(async (inputs: string[], options: { type: string }) => {
     try {
       await initDb();
-      console.log(`\nProcessing ${companies.length} companies...\n`);
 
-      for (const company of companies) {
-        console.log(`Processing: ${company}`);
-        const result = await findATS(company);
-        
-        console.log(`  => Detected: ${result.name} (${result.url || 'N/A'})`);
-        
-        // wd_params is null for now
-        // Map null key to 'custom' for unknown/other ATS types if required by ENUM
-        const atsType = result.key || 'custom'; 
-        
-        await insertCompanyATS(company, atsType, result.token, null, result.url);
-        console.log(`  => Saved to database.\n`);
+      if (options.type === 'link') {
+        const filePath = inputs[0];
+        if (!filePath) {
+           console.error('Error: Please provide a file path for link mode.');
+           process.exit(1);
+        }
+
+        console.log(`Reading URLs from ${filePath}...`);
+        let fileContent = '';
+        try {
+          fileContent = fs.readFileSync(filePath, 'utf-8');
+        } catch (err: any) {
+          console.error(`Error reading file: ${err.message}`);
+          process.exit(1);
+        }
+
+        const urls = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log(`\nProcessing ${urls.length} URLs...\n`);
+
+        for (const url of urls) {
+           console.log(`Processing URL: ${url}`);
+           const parsed = parseCompanyUrl(url);
+           
+           if (!parsed.name) {
+             console.log(`  => Skipping: Could not extract name from URL.`);
+             continue;
+           }
+
+           console.log(`  => Parsed: ${parsed.name} (${parsed.ats_type})`);
+           
+           await insertCompanyATS(
+             parsed.name, 
+             parsed.ats_type, 
+             parsed.ats_token, 
+             parsed.wd_params, 
+             url
+           );
+           console.log('  => Saved to database.\n');
+        }
+
+      } else {
+        // Default "name" mode
+        const companies = inputs;
+        console.log(`\nProcessing ${companies.length} companies...\n`);
+
+        for (const company of companies) {
+          console.log(`Processing: ${company}`);
+          const result = await findATS(company);
+          
+          console.log(`  => Detected: ${result.name} (${result.url || 'N/A'})`);
+          
+          // Map null key to 'custom' for unknown/other ATS types if required by ENUM
+          const atsType = result.key || 'custom'; 
+          
+          await insertCompanyATS(company, atsType, result.token, null, result.url);
+          console.log(`  => Saved to database.\n`);
+        }
       }
 
-      console.log('All companies processed.');
+      console.log('All items processed.');
     } catch (error) {
       console.error('An error occurred during execution:', error);
       process.exit(1);

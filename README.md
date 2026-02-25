@@ -49,7 +49,7 @@ A powerful automation tool that identifies the Applicant Tracking System (ATS) u
     | `DATABASE_ID` | The ID of the Notion database to process. | *Required* |
     | `COMPANY_PROPERTY_NAME` | The property name for the company name. | `Name` |
     | `ATS_PROPERTY_NAME` | The property name to store the ATS type. | `ATS` |
-    | `PORTAL_URL_PROPERTY_NAME` | The property name to store the job portal URL. | `Job Portal URL` |
+    | `JOB_URL_PROPERTY_NAME` | The property name to store the job portal URL. | `Job Portal URL` |
 
 ## Usage
 

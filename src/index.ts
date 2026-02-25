@@ -1,13 +1,13 @@
-import 'dotenv/config';
-import { Client } from '@notionhq/client';
+import { Client, DatabaseObjectResponse, PageObjectResponse, QueryDataSourceResponse } from '@notionhq/client';
 import axios from 'axios';
+import 'dotenv/config';
 
 // Configuration - extracted from environment variables
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const DATABASE_ID = process.env.DATABASE_ID;
 const COMPANY_PROPERTY_NAME = process.env.COMPANY_PROPERTY_NAME || 'Name';
 const ATS_PROPERTY_NAME = process.env.ATS_PROPERTY_NAME || 'ATS';
-const PORTAL_URL_PROPERTY_NAME = process.env.PORTAL_URL_PROPERTY_NAME || 'Job Portal URL';
+const JOB_URL_PROPERTY_NAME = process.env.JOB_URL_PROPERTY_NAME || 'Job Portal URL';
 const WORKDAY_TENANT_PROPERTY_NAME = process.env.WORKDAY_TENANT_PROPERTY_NAME || 'Workday Tenant';
 const WORKDAY_PORTAL_PROPERTY_NAME = process.env.WORKDAY_PORTAL_PROPERTY_NAME || 'Workday Portal';
 const WORKDAY_FACETS_PROPERTY_NAME = process.env.WORKDAY_FACETS_PROPERTY_NAME || 'Workday Facets';
@@ -46,12 +46,7 @@ const ATS_PLATFORMS: AtsPlatform[] = [
     name: 'Ashby',
     getApiUrl: (slug: string) => `https://api.ashbyhq.com/posting-api/job-board/${slug}`,
     getBoardUrl: (slug: string) => `https://jobs.ashbyhq.com/${slug}`,
-  },
-  {
-    name: 'Workday',
-    getApiUrl: (slug: string) => `https://${slug}.myworkdayjobs.com/jobs`,
-    getBoardUrl: (slug: string) => `https://${slug}.myworkdayjobs.com/jobs`,
-  },
+  }
 ];
 
 /**
@@ -92,7 +87,7 @@ export function parseWorkdayUrl(urlStr: string) {
       portal, 
       facetsJson: JSON.stringify(facets, null, 2) 
     };
-  } catch (error) {
+  } catch {
     console.error(`Failed to parse Workday URL: ${urlStr}`);
     return null;
   }
@@ -164,9 +159,9 @@ async function findATS(companyName: string): Promise<AtsResult> {
 async function run(): Promise<void> {
   try {
     console.log(`Retrieving database metadata for: ${DATABASE_ID}`);
-    const database: any = await notion.databases.retrieve({
+    const database: DatabaseObjectResponse = await notion.databases.retrieve({
       database_id: DATABASE_ID!,
-    });
+    }) as DatabaseObjectResponse;
 
     if (!database.data_sources || database.data_sources.length === 0) {
       throw new Error('No data sources found for this database. Ensure it is a modern Notion database.');
@@ -176,17 +171,17 @@ async function run(): Promise<void> {
     console.log(`Processing Data Source: ${dataSourceId} (${database.data_sources[0].name || 'Unnamed'})`);
 
     let hasMore = true;
-    let cursor: string | undefined = undefined;
+    let cursor: string | null = null;
     let totalProcessed = 0;
 
     while (hasMore) {
       console.log(`\nFetching next page of results... (Total processed so far: ${totalProcessed})`);
-      const response: any = await notion.dataSources.query({
+      const response: QueryDataSourceResponse = await notion.dataSources.query({
         data_source_id: dataSourceId,
-        start_cursor: cursor,
+        start_cursor: cursor || undefined,
       });
 
-      const results = response.results;
+      const results = response.results as PageObjectResponse[];
       
       for (const page of results) {
         const properties = page.properties;
@@ -201,19 +196,20 @@ async function run(): Promise<void> {
         console.log(`\n[${++totalProcessed}] Processing: ${companyName}`);
 
         // Get current ATS and Portal URL
-        const currentAtsProp = properties[ATS_PROPERTY_NAME];
+        const currentAtsProp = properties[ATS_PROPERTY_NAME] as any;
         const currentAtsValue = currentAtsProp?.select?.name || currentAtsProp?.rich_text?.[0]?.plain_text;
-        const currentPortalUrlProp = properties[PORTAL_URL_PROPERTY_NAME];
-        const currentPortalUrl = currentPortalUrlProp?.url || currentPortalUrlProp?.rich_text?.[0]?.plain_text;
+        const currentJobUrlProp = properties[JOB_URL_PROPERTY_NAME] as any;
+        const currentJobUrl = currentJobUrlProp?.url || currentJobUrlProp?.rich_text?.[0]?.plain_text;
 
         let result: AtsResult;
         
         // If it's already marked as Workday, we skip findATS unless we need to update the URL
-        if (currentAtsValue === 'Workday' && currentPortalUrl) {
-          result = { name: 'Workday', url: currentPortalUrl };
-        } else {
+        if (!currentJobUrl && currentAtsValue !== 'Workday' && currentAtsValue !== 'Other') {
           result = await findATS(companyName);
           console.log(`Result: ${result.name} (${result.url || 'N/A'})`);
+        } else {
+          result = { name: currentAtsValue, url: currentJobUrl };
+          console.log(`Skipping ATS fetch -> Using existing ATS: ${currentAtsValue} (${currentJobUrl})`);
         }
 
         const updateProperties: any = {};
@@ -231,22 +227,8 @@ async function run(): Promise<void> {
           }
         }
 
-        // 2. Update Job Portal URL (if new)
-        if (result.url && result.url !== currentPortalUrl) {
-          const urlProp = properties[PORTAL_URL_PROPERTY_NAME];
-          if (urlProp && urlProp.type === 'url') {
-            updateProperties[PORTAL_URL_PROPERTY_NAME] = {
-              url: result.url,
-            };
-          } else {
-            updateProperties[PORTAL_URL_PROPERTY_NAME] = {
-              rich_text: [{ text: { content: result.url } }],
-            };
-          }
-        }
-
         // 3. Special Workday Parsing (only if it's a Workday URL)
-        const finalUrl = result.url || currentPortalUrl;
+        const finalUrl = result.url || currentJobUrl;
         if ((result.name === 'Workday' || currentAtsValue === 'Workday') && finalUrl) {
           const workdayData = parseWorkdayUrl(finalUrl);
           if (workdayData) {
@@ -273,13 +255,13 @@ async function run(): Promise<void> {
       }
 
       hasMore = response.has_more;
-      cursor = response.next_cursor;
+      cursor = response.next_cursor || null;
     }
 
     console.log(`\nSuccessfully finished processing ${totalProcessed} companies.`);
-  } catch (error: any) {
-    console.error('An error occurred:', error.message);
-    if (error.body) {
+  } catch (error) {
+    console.error('An error occurred:', error instanceof Error ? error.message : 'Unknown error');
+    if (error instanceof Error && 'body' in error && typeof error.body === 'object' && error.body !== null) {
       console.error('Notion Error Details:', JSON.stringify(error.body, null, 2));
     }
   }

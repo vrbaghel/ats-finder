@@ -25,8 +25,8 @@ export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
     throw new Error('NOTION_DATABASE_ID is not defined in .env');
   }
 
-  const response = await notion.databases.query({
-    database_id: databaseId,
+  const response = await notion.dataSources.query({
+    data_source_id: databaseId,
     filter: {
       property: PROP_UPLOADED,
       checkbox: {

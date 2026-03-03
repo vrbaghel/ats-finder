@@ -22,23 +22,25 @@ export const insertCompanyATS = async (
   atsType: string | null,
   atsToken: string | null,
   wdParams: object | null = null,
-  careersPageUrl: string | null = null
+  careersPageUrl: string | null = null,
+  isActive: boolean = true
 ) => {
   const upsertQuery = `
-    INSERT INTO ${TABLE_NAME} (name, ats_type, ats_token, wd_params, last_scanned_at, careers_page_url)
-    VALUES ($1, $2, $3, $4::jsonb, NOW(), $5)
+    INSERT INTO ${TABLE_NAME} (name, ats_type, ats_token, wd_params, last_scanned_at, careers_page_url, is_active)
+    VALUES ($1, $2, $3, $4::jsonb, NOW(), $5, $6)
     ON CONFLICT (name) 
     DO UPDATE SET 
       ats_type = EXCLUDED.ats_type, 
       ats_token = EXCLUDED.ats_token,
       wd_params = COALESCE(EXCLUDED.wd_params, ${TABLE_NAME}.wd_params),
       last_scanned_at = NOW(),
-      careers_page_url = COALESCE(EXCLUDED.careers_page_url, ${TABLE_NAME}.careers_page_url)
+      careers_page_url = COALESCE(EXCLUDED.careers_page_url, ${TABLE_NAME}.careers_page_url),
+      is_active = EXCLUDED.is_active
     RETURNING *;
   `;
 
   try {
-    const res = await pool.query(upsertQuery, [name, atsType, atsToken, wdParams, careersPageUrl]);
+    const res = await pool.query(upsertQuery, [name, atsType, atsToken, wdParams, careersPageUrl, isActive]);
     return res.rows[0];
   } catch (err: any) {
     console.error(`Error inserting/updating company '${name}':`, {

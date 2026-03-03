@@ -9,12 +9,14 @@ const PROP_COMPANY_NAME = process.env.NOTION_PROP_COMPANY_NAME || 'Company Name'
 const PROP_ATS_TYPE = process.env.NOTION_PROP_ATS_TYPE || 'ATS Type';
 const PROP_CAREERS_URL = process.env.NOTION_PROP_CAREERS_URL || 'Careers Page URL';
 const PROP_UPLOADED = process.env.NOTION_PROP_UPLOADED || 'Uploaded';
+const PROP_WAF = process.env.NOTION_PROP_WAF || 'WAF';
 
 export interface NotionCompany {
   pageId: string;
   name: string;
   ats_type: string | null;
   careers_page_url: string | null;
+  waf: boolean;
 }
 
 /**
@@ -48,11 +50,15 @@ export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
     // Careers Page URL (URL)
     const careers_page_url = props[PROP_CAREERS_URL]?.url || props[PROP_CAREERS_URL]?.rich_text?.[0]?.plain_text || null;
 
+    // WAF (Checkbox)
+    const waf = props[PROP_WAF]?.checkbox || false;
+
     return {
       pageId: page.id,
       name,
       ats_type,
       careers_page_url,
+      waf,
     };
   });
 }

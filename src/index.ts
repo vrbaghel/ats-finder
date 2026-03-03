@@ -146,7 +146,7 @@ async function sync() {
 
       try {
         // Save to Supabase
-        await insertCompanyATS(company.name, atsType, atsToken, wdParams, careersUrl);
+        await insertCompanyATS(company.name, atsType, atsToken, wdParams, careersUrl, !company.waf);
         // Mark as uploaded in Notion
         await markAsUploaded(company.pageId);
         logger.info(`  => Success: ${company.name} saved and synced.`);

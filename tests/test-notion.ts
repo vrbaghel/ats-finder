@@ -10,7 +10,7 @@ async function runNotionTest() {
 
     if (companies.length > 0) {
       const first = companies[0];
-      logger.info(`   Sample entry: ${first.name} | ${first.ats_type} | ${first.careers_page_url}`);
+      logger.info(`   Sample entry: ${first.name} | ${first.ats_type} | ${first.careers_page_url} | WAF: ${first.waf}`);
     } else {
       logger.info('   Note: No pending companies found in Notion.');
     }

@@ -74,6 +74,8 @@ async function findATS(companyName: string) {
       const apiUrl = platform.getApiUrl(slug);
       if (await checkUrl(apiUrl)) {
         return { key: platform.key, token: slug, url: platform.getBoardUrl(slug) };
+      } else {
+        logger.error(`Invalid URL ${apiUrl} for company ${slug} - ${platform.name}`);
       }
     }
   }

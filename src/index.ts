@@ -4,6 +4,7 @@ import fs from 'fs';
 import 'dotenv/config';
 import { initDb, insertCompanyATS, closeDb } from './db.js';
 import { parseCompanyUrl } from './urlParser.js';
+import { fetchPendingCompanies, markAsUploaded } from './notion.js';
 
 // Configuration
 const program = new Command();
@@ -101,6 +102,77 @@ async function findATS(companyName: string): Promise<AtsResult> {
   }
   return { key: null, name: 'Other', token: null, url: null };
 }
+
+program
+  .command('sync-notion')
+  .description('Import pending companies from Notion, parse ATS, and upload to Supabase')
+  .action(async () => {
+    try {
+      await initDb();
+
+      console.log('Fetching pending companies from Notion...');
+      const companies = await fetchPendingCompanies();
+
+      if (companies.length === 0) {
+        console.log('No pending companies found in Notion.');
+        return;
+      }
+
+      console.log(`\nProcessing ${companies.length} companies...\n`);
+
+      for (const company of companies) {
+        console.log(`Processing: ${company.name}`);
+
+        let atsType = company.ats_type?.toLowerCase() as any || 'custom';
+        let atsToken = null;
+        let wdParams = null;
+        let careersUrl = company.careers_page_url;
+
+        // If URL is provided, parse it for deeper ATS details
+        if (company.careers_page_url) {
+          const parsed = parseCompanyUrl(company.careers_page_url);
+          
+          // Use parsed data if available, or fall back to Notion's data
+          atsType = parsed.ats_type !== 'custom' ? parsed.ats_type : (atsType || 'custom');
+          atsToken = parsed.ats_token;
+          wdParams = parsed.wd_params;
+          careersUrl = company.careers_page_url; // Use original or updated URL
+          
+          console.log(`  => Parsed from URL: ${atsType} (Token: ${atsToken})`);
+        }
+
+        // Validate ATS Type against ENUM
+        const validAtsTypes = ['greenhouse', 'lever', 'ashby', 'workday', 'custom'];
+        if (!validAtsTypes.includes(atsType)) {
+          console.warn(`  => Warning: '${atsType}' is not a valid ATS type. Defaulting to 'custom'.`);
+          atsType = 'custom';
+        }
+
+        try {
+          await insertCompanyATS(
+            company.name,
+            atsType,
+            atsToken,
+            wdParams,
+            careersUrl
+          );
+          console.log('  => Saved to database.');
+
+          await markAsUploaded(company.pageId);
+          console.log('  => Marked as uploaded in Notion.\n');
+        } catch (dbErr) {
+          console.error(`  => Failed to process company '${company.name}':`, dbErr);
+        }
+      }
+
+      console.log('Sync completed.');
+    } catch (error) {
+      console.error('An error occurred during sync:', error);
+      process.exit(1);
+    } finally {
+      await closeDb();
+    }
+  });
 
 program
   .name('ats-finder')

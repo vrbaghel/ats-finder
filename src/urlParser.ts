@@ -1,4 +1,5 @@
 import { URL } from 'url';
+import { logger } from './logger.js';
 
 export interface ParsedUrlResult {
   name: string | null; // Heuristic guess
@@ -119,6 +120,7 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
       return !isLocale && !isJobs;
     });
     const portal = filteredSegments[0] || 'external';
+    logger.error(`\n\nUsing default workday portal 'external' for ${companyName}\n\n`);
 
     // Facets are searchParams converted to a JSON object of arrays
     const facets: Record<string, string[]> = {};

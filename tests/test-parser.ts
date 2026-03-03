@@ -34,10 +34,10 @@ async function runParserTest() {
     const passed = result.ats_type === test.type && result.ats_token === test.token;
 
     if (passed) {
-      logger.info(`✅ PASS: ${test.url} -> ${result.ats_type} (${result.ats_token})`);
+      logger.info(`PASS: ${test.url} -> ${result.ats_type} (${result.ats_token})`);
       passedCount++;
     } else {
-      logger.error(`❌ FAIL: ${test.url}`);
+      logger.error(`FAIL: ${test.url}`);
       logger.error(`   Expected: ${test.type} (${test.token})`);
       logger.error(`   Actual:   ${result.ats_type} (${result.ats_token})`);
     }

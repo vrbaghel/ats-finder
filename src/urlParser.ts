@@ -2,7 +2,6 @@ import { URL } from 'url';
 import { logger } from './logger.js';
 
 export interface ParsedUrlResult {
-  name: string | null; // Heuristic guess
   ats_type: 'greenhouse' | 'lever' | 'ashby' | 'workday' | 'custom';
   ats_token: string | null;
   wd_params: {
@@ -20,7 +19,6 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
     url = new URL(toParse);
   } catch {
     return {
-      name: null,
       ats_type: 'custom',
       ats_token: null,
       wd_params: null
@@ -47,7 +45,6 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
     }
 
     return {
-      name: token, 
       ats_type: 'greenhouse',
       ats_token: token,
       wd_params: null
@@ -70,7 +67,6 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
     }
 
     return {
-      name: token,
       ats_type: 'lever',
       ats_token: token,
       wd_params: null
@@ -91,7 +87,6 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
     }
 
     return {
-      name: token,
       ats_type: 'ashby',
       ats_token: token,
       wd_params: null
@@ -132,7 +127,6 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
     });
 
     return {
-      name: companyName,
       ats_type: 'workday',
       ats_token: companyName, 
       wd_params: {
@@ -144,20 +138,7 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
   }
 
   // --- Custom ---
-  // Try to extract a name from the domain (e.g. careers.spotify.com -> spotify)
-  const commonSubdomains = ['www', 'careers', 'jobs', 'about', 'corp', 'my', 'secure', 'app', 'job-board', 'board', 'eu'];
-  const domainParts = hostname.split('.');
-  
-  // Filter out common subdomains
-  const meaningfulParts = domainParts.filter(p => !commonSubdomains.includes(p));
-  
-  // Heuristic: Take the first meaningful part.
-  // e.g. spotify.com -> spotify
-  // spotify.co.uk -> spotify
-  const nameGuess = meaningfulParts[0] || 'unknown';
-  
   return {
-    name: nameGuess,
     ats_type: 'custom',
     ats_token: null,
     wd_params: null

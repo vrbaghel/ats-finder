@@ -9,7 +9,8 @@
     "lint": "eslint src/**/*.ts",
     "test:parser": "node --loader ts-node/esm --experimental-specifier-resolution=node tests/test-parser.ts",
     "test:notion": "node --loader ts-node/esm --experimental-specifier-resolution=node tests/test-notion.ts",
-    "test:db": "node --loader ts-node/esm --experimental-specifier-resolution=node tests/test-db.ts"
+    "test:db": "node --loader ts-node/esm --experimental-specifier-resolution=node tests/test-db.ts",
+    "test:platforms": "node --loader ts-node/esm --experimental-specifier-resolution=node tests/test-platform-uploads.ts"
   },
   "keywords": [],
   "author": "",

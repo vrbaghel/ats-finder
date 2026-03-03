@@ -6,7 +6,7 @@ async function runNotionTest() {
   logger.info('--- Starting Notion Fetch Test ---');
   try {
     const companies = await fetchPendingCompanies();
-    logger.info(`✅ Successfully fetched ${companies.length} pending companies.`);
+    logger.info(`Successfully fetched ${companies.length} pending companies.`);
 
     if (companies.length > 0) {
       const first = companies[0];
@@ -17,7 +17,7 @@ async function runNotionTest() {
     
     logger.info('--- Notion Fetch Test Passed ---');
   } catch (error) {
-    logger.error('❌ FAIL: Notion Fetch Test');
+    logger.error('FAIL: Notion Fetch Test');
     logger.error(error instanceof Error ? error.stack : error);
     process.exit(1);
   }

@@ -4,4 +4,5 @@ dist
 .urls
 GEMINI.md
 CLAUDE.md
-CODEX.mdlogs/
+CODEX.md
+logs/

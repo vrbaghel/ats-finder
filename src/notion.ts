@@ -1,8 +1,8 @@
 import { Client } from '@notionhq/client';
 import 'dotenv/config';
 
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
-const databaseId = process.env.NOTION_DATABASE_ID!;
+const notion = new Client({ auth: process.env.NOTION_API_KEY, notionVersion: '2025-09-03' });
+const databaseId = process.env.NOTION_DATASOURCE_ID!;
 
 // Configurable Notion Property Names
 const PROP_NAME = process.env.NOTION_PROP_NAME || 'Name';
@@ -22,7 +22,7 @@ export interface NotionCompany {
  */
 export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
   if (!databaseId) {
-    throw new Error('NOTION_DATABASE_ID is not defined in .env');
+    throw new Error('NOTION_DATASOURCE_ID is not defined in .env');
   }
 
   const response = await notion.dataSources.query({

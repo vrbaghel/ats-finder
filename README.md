@@ -1,23 +1,25 @@
-# ATS Finder CLI
+# ATS Finder
 
-A command-line interface (CLI) tool that identifies the Applicant Tracking System (ATS) used by companies and stores the results in a PostgreSQL (Supabase) database.
+A tool that synchronizes company data from a Notion database, identifies their Applicant Tracking System (ATS), and stores the results in a PostgreSQL (Supabase) database.
 
-Currently supports detection of **Greenhouse**, **Lever**, **Ashby**, and **Workday** by probing their public job board APIs or parsing provided URLs.
+Currently supports detection of **Greenhouse**, **Lever**, **Ashby**, and **Workday** by parsing provided URLs or probing public job board APIs.
 
 ## Features
 
-- **Dual Input Modes**:
-    - **Name Mode**: Accept a list of company names directly as arguments to auto-detect ATS.
-    - **Link Mode**: Accept a file containing a list of URLs to parse and extract ATS details.
-- **Automated Detection**: Generates common slug variants (e.g., "Riot Games" -> `riotgames`, `riot-games`) to find the correct job board.
-- **Advanced URL Parsing**: Extracts detailed configuration for Workday (Tenant, Portal, Facets) and other ATS platforms.
+- **Notion Sync**: Automatically fetches companies from a Notion database that have not been "uploaded" yet.
+- **Automated Detection**: 
+    - **URL Parsing**: Extracts detailed configuration for Workday (Tenant, Portal, Facets) and other ATS platforms from career page URLs.
+    - **Probing (Fallback)**: If parsing returns 'custom', it attempts to probe known API endpoints using company name variants.
 - **PostgreSQL Integration**: Optimized for Supabase with a schema designed for batch processing.
-- **Idempotent Storage**: Updates existing records if the company is already in the database.
+- **Winston Logging**: Structured logging to both console and files (`logs/combined.log`, `logs/error.log`).
+- **Idempotent Storage**: Updates existing records if the company name already exists in the database.
+- **Configurable**: Notion property names are configurable via environment variables.
 
 ## Prerequisites
 
 - **Node.js** (v18 or higher)
 - **PostgreSQL** database instance (e.g., Supabase)
+- **Notion Integration**: An internal integration with access to your database.
 
 ## Setup
 
@@ -38,39 +40,34 @@ Currently supports detection of **Greenhouse**, **Lever**, **Ashby**, and **Work
     cp .env.example .env
     ```
     
-    Edit `.env` with your PostgreSQL credentials:
+    Edit `.env` with your credentials:
     ```env
+    # Database
     DB_USER=postgres
     DB_HOST=your-supabase-host.supabase.co
     DB_NAME=postgres
     DB_PASSWORD=yourpassword
     DB_PORT=5432
     DB_TABLE_NAME=companies
+
+    # Notion
+    NOTION_API_KEY=your_integration_secret
+    NOTION_DATABASE_ID=your_database_uuid
+    
+    # Notion Property Names (Optional overrides)
+    NOTION_PROP_NAME=Name
+    NOTION_PROP_ATS_TYPE=ATS Type
+    NOTION_PROP_CAREERS_URL=Careers Page URL
+    NOTION_PROP_UPLOADED=Uploaded
     ```
 
 ## Usage
 
-### 1. Process by Company Name
-Run the tool by passing one or more company names as arguments. This will attempt to find their ATS automatically.
+### Run Synchronization
+The main script fetches pending companies from Notion, processes them, and uploads to Supabase.
 
 ```bash
-# Process a single company
-npm start -- "Airbnb"
-
-# Process multiple companies
-npm start -- "Airbnb" "Stripe" "Riot Games"
-```
-
-### 2. Process by URL List (File)
-Pass a file containing a list of career page URLs (one per line). The tool will parse each URL to extract the ATS type, company name, and specific parameters (especially for Workday).
-
-```bash
-# Create a file with URLs
-echo "https://jobs.lever.co/spotify" > companies.urls
-echo "https://nvidia.wd5.myworkdayjobs.com/NVIDIA_External_Career_Site" >> companies.urls
-
-# Run in link mode
-npm start -- --type link companies.urls
+npm start
 ```
 
 ## Database Schema
@@ -89,6 +86,20 @@ The tool expects a table (default: `companies`) with the following structure (Su
 | `is_active` | BOOLEAN | Whether the company is currently active. |
 
 ## Development
+
+### Test Scripts
+Run individual tests for different parts of the system:
+
+```bash
+# Test URL parsing logic with various ATS formats
+npm run test:parser
+
+# Test fetching pending companies from Notion
+npm run test:notion
+
+# Test database connection and upsert logic
+npm run test:db
+```
 
 ### Build
 Compile TypeScript to JavaScript:

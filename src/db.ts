@@ -26,7 +26,7 @@ export const insertCompanyATS = async (
 ) => {
   const upsertQuery = `
     INSERT INTO ${TABLE_NAME} (name, ats_type, ats_token, wd_params, last_scanned_at, careers_page_url)
-    VALUES ($1, $2, $3, $4, NOW(), $5)
+    VALUES ($1, $2, $3, $4::jsonb, NOW(), $5)
     ON CONFLICT (name) 
     DO UPDATE SET 
       ats_type = EXCLUDED.ats_type, 
@@ -40,8 +40,13 @@ export const insertCompanyATS = async (
   try {
     const res = await pool.query(upsertQuery, [name, atsType, atsToken, wdParams, careersPageUrl]);
     return res.rows[0];
-  } catch (err) {
-    console.error(`Error inserting/updating company '${name}':`, err);
+  } catch (err: any) {
+    console.error(`Error inserting/updating company '${name}':`, {
+      message: err.message,
+      detail: err.detail,
+      hint: err.hint,
+      code: err.code
+    });
     throw err;
   }
 };

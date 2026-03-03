@@ -32,7 +32,7 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
   // --- Greenhouse ---
   // https://boards.greenhouse.io/spotify
   // https://boards.greenhouse.io/embed/job_board?for=spotify
-  if (hostname.includes('boards.greenhouse.io')) {
+  if (hostname.endsWith('greenhouse.io')) {
     let token: string | null;
     const forParam = url.searchParams.get('for');
     
@@ -40,7 +40,9 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
       token = forParam;
     } else {
       const parts = pathname.split('/').filter(Boolean);
-      token = parts[0] || null;
+      // Skip 'embed' or 'job_board' if they appear
+      const filteredParts = parts.filter(p => !['embed', 'job_board'].includes(p.toLowerCase()));
+      token = filteredParts[0] || null;
     }
 
     return {
@@ -53,9 +55,19 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
 
   // --- Lever ---
   // https://jobs.lever.co/spotify
-  if (hostname.includes('jobs.lever.co')) {
+  // https://jobs.eu.lever.co/prosus
+  if (hostname.endsWith('lever.co')) {
     const parts = pathname.split('/').filter(Boolean);
-    const token = parts[0] || null;
+    let token = parts[0] || null;
+
+    // Handle company.lever.co where token is in subdomain
+    if (!token && hostname !== 'lever.co') {
+      const subdomains = hostname.split('.');
+      if (subdomains.length >= 3 && !['jobs', 'www'].includes(subdomains[0])) {
+        token = subdomains[0];
+      }
+    }
+
     return {
       name: token,
       ats_type: 'lever',
@@ -66,9 +78,17 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
 
   // --- Ashby ---
   // https://jobs.ashbyhq.com/spotify
-  if (hostname.includes('jobs.ashbyhq.com')) {
+  if (hostname.endsWith('ashbyhq.com')) {
     const parts = pathname.split('/').filter(Boolean);
-    const token = parts[0] || null;
+    let token = parts[0] || null;
+
+    if (!token && hostname !== 'ashbyhq.com') {
+      const subdomains = hostname.split('.');
+      if (subdomains.length >= 3 && !['jobs', 'www'].includes(subdomains[0])) {
+        token = subdomains[0];
+      }
+    }
+
     return {
       name: token,
       ats_type: 'ashby',
@@ -80,22 +100,19 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
   // --- Workday ---
   // https://nvidia.wd5.myworkdayjobs.com/NVIDIA_External_Career_Site
   // https://sabre.wd1.myworkdayjobs.com/en-US/SabreJobs
+  // https://broadcom.wd1.myworkdayjobs.com/External_Career
   if (hostname.includes('myworkdayjobs.com')) {
     const domainParts = hostname.split('.');
     const mwjIndex = domainParts.indexOf('myworkdayjobs');
     
     const companyName = domainParts[0];
-    // The tenant is usually the segment before 'myworkdayjobs'
+    // The tenant is specifically the segment before 'myworkdayjobs' (e.g., wd1, wd5)
     const tenant = mwjIndex > 0 ? domainParts[mwjIndex - 1] : 'unknown';
 
-    // If we have a structure like sabre.wd1.myworkdayjobs.com, companyName is likely the first part
-    // and tenant (wd1) is the second part (which we captured above as mwjIndex-1).
-    // If nvidia.myworkdayjobs.com, companyName (nvidia) == tenant (nvidia).
-    
     // Refine Portal: Split pathname, remove empty segments, and ignore locales and "jobs"
     const segments = pathname.split('/').filter(s => s.length > 0);
     const filteredSegments = segments.filter(s => {
-      // Ignore locales: en, en-US, fr-FR, zh-Hans-CN
+      // Ignore locales: en, en-US, fr-FR, zh-Hans-CN, etc.
       const isLocale = /^[a-z]{2}(-[a-zA-Z]{2,4}){0,2}$/.test(s);
       // Ignore literal "jobs"
       const isJobs = s.toLowerCase() === 'jobs';
@@ -126,7 +143,7 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
 
   // --- Custom ---
   // Try to extract a name from the domain (e.g. careers.spotify.com -> spotify)
-  const commonSubdomains = ['www', 'careers', 'jobs', 'about', 'corp', 'my', 'secure', 'app', 'job-board', 'board'];
+  const commonSubdomains = ['www', 'careers', 'jobs', 'about', 'corp', 'my', 'secure', 'app', 'job-board', 'board', 'eu'];
   const domainParts = hostname.split('.');
   
   // Filter out common subdomains

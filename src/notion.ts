@@ -5,7 +5,7 @@ const notion = new Client({ auth: process.env.NOTION_API_KEY, notionVersion: '20
 const databaseId = process.env.NOTION_DATASOURCE_ID!;
 
 // Configurable Notion Property Names
-const PROP_NAME = process.env.NOTION_PROP_NAME || 'Name';
+const PROP_COMPANY_NAME = process.env.NOTION_PROP_COMPANY_NAME || 'Company Name';
 const PROP_ATS_TYPE = process.env.NOTION_PROP_ATS_TYPE || 'ATS Type';
 const PROP_CAREERS_URL = process.env.NOTION_PROP_CAREERS_URL || 'Careers Page URL';
 const PROP_UPLOADED = process.env.NOTION_PROP_UPLOADED || 'Uploaded';
@@ -40,7 +40,7 @@ export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
     const props = page.properties;
 
     // Name (Title)
-    const name = props[PROP_NAME]?.title?.[0]?.plain_text || 'Unknown';
+    const name = props[PROP_COMPANY_NAME]?.title?.[0]?.plain_text || 'Unknown';
 
     // ATS Type (Select or Multi-Select or Text)
     const ats_type = props[PROP_ATS_TYPE]?.select?.name || props[PROP_ATS_TYPE]?.rich_text?.[0]?.plain_text || null;

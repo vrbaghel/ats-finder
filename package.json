@@ -14,9 +14,11 @@
   "type": "module",
   "dependencies": {
     "@notionhq/client": "^5.11.1",
+    "@types/winston": "^2.4.4",
     "axios": "^1.13.5",
     "dotenv": "^17.3.1",
-    "pg": "^8.18.0"
+    "pg": "^8.18.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

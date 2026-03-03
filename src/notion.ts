@@ -4,6 +4,12 @@ import 'dotenv/config';
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const databaseId = process.env.NOTION_DATABASE_ID!;
 
+// Configurable Notion Property Names
+const PROP_NAME = process.env.NOTION_PROP_NAME || 'Name';
+const PROP_ATS_TYPE = process.env.NOTION_PROP_ATS_TYPE || 'ATS Type';
+const PROP_CAREERS_URL = process.env.NOTION_PROP_CAREERS_URL || 'Careers Page URL';
+const PROP_UPLOADED = process.env.NOTION_PROP_UPLOADED || 'Uploaded';
+
 export interface NotionCompany {
   pageId: string;
   name: string;
@@ -22,7 +28,7 @@ export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
   const response = await notion.databases.query({
     database_id: databaseId,
     filter: {
-      property: 'Uploaded',
+      property: PROP_UPLOADED,
       checkbox: {
         equals: false,
       },
@@ -30,17 +36,17 @@ export async function fetchPendingCompanies(): Promise<NotionCompany[]> {
   });
 
   return response.results.map((page: any) => {
-    // Extract properties safely based on common Notion property types
+    // Extract properties safely based on configurable Notion property names
     const props = page.properties;
-    
+
     // Name (Title)
-    const name = props.Name?.title?.[0]?.plain_text || 'Unknown';
-    
-    // ATS Type (Select or Multi-Select or Text) - assuming Select for now
-    const ats_type = props['ATS Type']?.select?.name || props['ATS Type']?.rich_text?.[0]?.plain_text || null;
-    
+    const name = props[PROP_NAME]?.title?.[0]?.plain_text || 'Unknown';
+
+    // ATS Type (Select or Multi-Select or Text)
+    const ats_type = props[PROP_ATS_TYPE]?.select?.name || props[PROP_ATS_TYPE]?.rich_text?.[0]?.plain_text || null;
+
     // Careers Page URL (URL)
-    const careers_page_url = props['Careers Page URL']?.url || props['Careers Page URL']?.rich_text?.[0]?.plain_text || null;
+    const careers_page_url = props[PROP_CAREERS_URL]?.url || props[PROP_CAREERS_URL]?.rich_text?.[0]?.plain_text || null;
 
     return {
       pageId: page.id,
@@ -58,9 +64,10 @@ export async function markAsUploaded(pageId: string): Promise<void> {
   await notion.pages.update({
     page_id: pageId,
     properties: {
-      Uploaded: {
+      [PROP_UPLOADED]: {
         checkbox: true,
       },
     },
   });
 }
+

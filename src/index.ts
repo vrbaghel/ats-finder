@@ -101,6 +101,11 @@ async function sync() {
     logger.info(`Processing ${companies.length} companies...`);
 
     for (const company of companies) {
+      if (!company.careers_page_url) {
+        logger.info(`Skipping ${company.name}: No careers page URL provided.`);
+        continue;
+      }
+
       logger.info(`Starting process for: ${company.name}`);
 
       let atsType: any = company.ats_type?.toLowerCase() || 'custom';
@@ -116,18 +121,17 @@ async function sync() {
           atsToken = parsed.ats_token;
           wdParams = parsed.wd_params;
           logger.info(`  => Parsed from URL: ${atsType} (Token: ${atsToken})`);
-        }
-      } else {
-        // Option 2: No URL, fallback to probing endpoints with name variants
-        logger.info(`  => No URL provided, attempting to probe endpoints...`);
-        const found = await findATS(company.name);
-        if (found) {
-          atsType = found.key;
-          atsToken = found.token;
-          careersUrl = found.url;
-          logger.info(`  => Probing found: ${atsType} (Token: ${atsToken})`);
         } else {
-          logger.info(`  => No ATS detected through probing.`);
+          // If parsing fails but URL exists, we could still probe if we want to be thorough,
+          // but the prompt implies a more streamlined "parse from URL" approach.
+          // Let's keep a minimal fallback probing if the URL is provided but parser failed.
+          const found = await findATS(company.name);
+          if (found) {
+            atsType = found.key;
+            atsToken = found.token;
+            careersUrl = found.url;
+            logger.info(`  => Probing fallback found: ${atsType} (Token: ${atsToken})`);
+          }
         }
       }
 

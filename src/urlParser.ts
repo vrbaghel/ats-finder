@@ -1,5 +1,4 @@
 import { URL } from 'url';
-import { logger } from './logger.js';
 
 export interface ParsedUrlResult {
   ats_type: 'greenhouse' | 'lever' | 'ashby' | 'workday' | 'custom';

@@ -6,7 +6,7 @@ export interface ParsedUrlResult {
   ats_token: string | null;
   wd_params: {
     tenant: string;
-    portal: string;
+    portal: string | null;
     facets: Record<string, string[]>;
   } | null;
 }
@@ -114,8 +114,7 @@ export function parseCompanyUrl(inputUrl: string): ParsedUrlResult {
       const isJobs = s.toLowerCase() === 'jobs';
       return !isLocale && !isJobs;
     });
-    const portal = filteredSegments[0] || 'external';
-    logger.error(`\n\nUsing default workday portal 'external' for ${companyName}\n\n`);
+    const portal = filteredSegments[0] || null;
 
     // Facets are searchParams converted to a JSON object of arrays
     const facets: Record<string, string[]> = {};

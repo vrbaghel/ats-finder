@@ -24,6 +24,7 @@ const testUrls = [
   { url: 'https://amadeus.wd502.myworkdayjobs.com/jobs', type: 'workday', token: 'amadeus', portal: null },
   { url: 'https://sentryinsurance.wd1.myworkdayjobs.com/SentryCareers', type: 'workday', token: 'sentryinsurance', portal: 'SentryCareers' },
   { url: 'https://ebay.wd5.myworkdayjobs.com/apply/', type: 'workday', token: 'ebay', portal: 'apply' },
+  { url: 'https://teladoc.wd503.myworkdayjobs.com/en-US/teladochealth_is_hiring?locationCountry=bc33aa3152ec42d4995f4791a106ed09&jobFamilyGroup=f6a39305a58101f1f5d7d0cc09019116', type: 'workday', token: 'teladoc', portal: 'teladochealth_is_hiring' },
   
   // Custom/Unknown
   { url: 'https://careers.spotify.com', type: 'custom', token: null },

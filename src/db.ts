@@ -2,11 +2,7 @@ import { Pool } from 'pg';
 import 'dotenv/config';
 
 const pool = new Pool({
-  user: process.env.DB_USER || 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'ats_finder',
-  password: process.env.DB_PASSWORD,
-  port: parseInt(process.env.DB_PORT || '5432', 10),
+  connectionString: process.env.DATABASE_URL
 });
 
 const TABLE_NAME = process.env.DB_TABLE_NAME || 'companies';
